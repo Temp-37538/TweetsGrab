@@ -1,0 +1,17 @@
+{
+  "name": "tweetsgrab",
+  "version": "1.0.0",
+  "description": "Twitter content grabber extension",
+  "type": "module",
+  "main": "background.js",
+  "scripts": {
+    "start": "node background.js",
+    "dev": "node --watch background.js"
+  },
+  "keywords": [
+    "twitter",
+    "extension"
+  ], 
+  "author": "",
+  "license": "ISC"
+}

@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "TweetsGrab",
+  "version": "1.0.0",
+  "description": "Select and export tweets from X.com as structured JSON",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "clipboardWrite",
+    "downloads",
+    "contextMenus"
+  ],
+  "host_permissions": [
+    "https://x.com/*",
+    "https://twitter.com/*",
+    "https://twittergrabapi.onrender.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://x.com/*", "https://twitter.com/*"],
+      "js": [
+        "retrieve_videolink.js",
+        "extract.js",
+        "selector.js",
+        "export.js",
+        "content.js"
+      ],
+      "css": ["styles.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  },
+  "action": {
+    "default_title": "TweetsGrab — Select & Export Tweets",
+    "default_icon": {
+      "48": "icons/48.png",
+      "128": "icons/128.png"
+    }
+  }
+}

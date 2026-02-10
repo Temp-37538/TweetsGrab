@@ -1,0 +1,643 @@
+:root {
+  --tg-bg: #08080c;
+  --tg-surface: rgba(10, 10, 16, 0.92);
+  --tg-glass-border: rgba(255, 255, 255, 0.045);
+  --tg-cyan: #00d4ff;
+  --tg-cyan-dim: rgba(0, 212, 255, 0.12);
+  --tg-cyan-glow: rgba(0, 212, 255, 0.3);
+  --tg-mint: #00ffc8;
+  --tg-red: #ff4060;
+  --tg-green: #00e68a;
+  --tg-text: #e0e2e8;
+  --tg-text-mid: #8b8fa3;
+  --tg-text-dim: #4a4e5c;
+  --tg-mono: "SF Mono", "Cascadia Code", "Fira Code", "Consolas", monospace;
+  --tg-sans:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --tg-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --tg-ease-out: cubic-bezier(0.55, 0, 1, 0.45);
+  --tg-zmax: 2147483647;
+}
+ 
+body.tg-selection-mode [data-testid="tweet"],
+body.tg-selection-mode article[role="article"] {
+  cursor: crosshair !important;
+  transition: none !important;
+}
+ 
+body.tg-selection-mode [data-testid="tweet"]:hover,
+body.tg-selection-mode article[role="article"]:hover {
+  outline: 2px solid rgba(0, 212, 255, 0.45) !important;
+  outline-offset: -2px !important;
+  box-shadow:
+    inset 0 0 28px rgba(0, 212, 255, 0.05),
+    0 0 0 1px rgba(0, 212, 255, 0.15) !important;
+}
+ 
+body.tg-selection-mode article.tg-selected:hover {
+  outline-color: var(--tg-red) !important;
+  box-shadow:
+    inset 0 0 30px rgba(255, 64, 96, 0.04),
+    0 0 0 1px rgba(255, 64, 96, 0.12),
+    0 0 16px rgba(255, 64, 96, 0.08) !important;
+}
+ 
+article.tg-selected {
+  outline: 2px solid var(--tg-cyan) !important;
+  outline-offset: -2px !important;
+  box-shadow:
+    inset 0 0 36px rgba(0, 212, 255, 0.035),
+    0 0 0 1px rgba(0, 212, 255, 0.1),
+    0 0 22px rgba(0, 212, 255, 0.07) !important;
+  position: relative !important;
+  transition: all 0.2s var(--tg-ease) !important;
+}
+ 
+article.tg-selected::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: -2px !important;
+  border-radius: inherit !important;
+  pointer-events: none !important;
+  z-index: 1 !important;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(0, 212, 255, 0.06) 50%,
+    transparent 100%
+  ) !important;
+  background-size: 200% 100% !important;
+  animation: tg-shimmer 3s ease-in-out infinite !important;
+}
+@keyframes tg-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+ 
+.tg-badge {
+  position: absolute !important;
+  top: 12px !important;
+  right: 12px !important;
+  width: 30px !important;
+  height: 30px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: linear-gradient(140deg, #00d4ff 0%, #009fcc 100%) !important;
+  color: #000 !important;
+  font-family: var(--tg-mono) !important;
+  font-weight: 800 !important;
+  font-size: 13px !important;
+  letter-spacing: -0.03em !important;
+  line-height: 1 !important;
+  border-radius: 50% !important;
+  z-index: 10000 !important;
+  pointer-events: none !important;
+  box-shadow:
+    0 2px 10px rgba(0, 212, 255, 0.45),
+    0 0 0 2.5px rgba(0, 0, 0, 0.55) !important;
+  animation: tg-badge-pop 0.3s var(--tg-ease) both !important;
+}
+
+@keyframes tg-badge-pop {
+  0% {
+    transform: scale(0) rotate(-120deg);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.15) rotate(8deg);
+  }
+  100% {
+    transform: scale(1) rotate(0);
+    opacity: 1;
+  }
+}
+ 
+.tg-indicator {
+  position: fixed !important;
+  top: 14px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  z-index: var(--tg-zmax) !important;
+  font-family: var(--tg-sans) !important;
+  animation: tg-slide-down 0.4s var(--tg-ease) both !important;
+}
+
+.tg-indicator-inner {
+  display: flex !important;
+  align-items: center !important;
+  gap: 14px !important;
+  padding: 0 18px !important;
+  height: 48px !important;
+  background: var(--tg-surface) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  border: 1px solid var(--tg-glass-border) !important;
+  border-radius: 14px !important;
+  box-shadow:
+    0 8px 40px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(0, 212, 255, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03) !important;
+}
+ 
+.tg-indicator-inner::after {
+  content: "" !important;
+  position: absolute !important;
+  bottom: -1px !important;
+  left: 20% !important;
+  right: 20% !important;
+  height: 1px !important;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--tg-cyan),
+    transparent
+  ) !important;
+  opacity: 0.5 !important;
+  border-radius: 1px !important;
+}
+ 
+.tg-indicator-brand {
+  display: flex !important;
+  align-items: center !important;
+  gap: 7px !important;
+}
+
+.tg-indicator-logo {
+  flex-shrink: 0 !important;
+  filter: drop-shadow(0 0 4px rgba(0, 212, 255, 0.5)) !important;
+}
+
+.tg-indicator-name {
+  font-weight: 800 !important;
+  font-size: 13px !important;
+  color: var(--tg-text) !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+  white-space: nowrap !important;
+}
+
+.tg-indicator-status {
+  display: flex !important;
+  align-items: center !important;
+  gap: 7px !important;
+  padding: 4px 11px !important;
+  background: var(--tg-cyan-dim) !important;
+  border: 1px solid rgba(0, 212, 255, 0.14) !important;
+  border-radius: 100px !important;
+}
+
+.tg-indicator-dot {
+  width: 7px !important;
+  height: 7px !important;
+  background: var(--tg-cyan) !important;
+  border-radius: 50% !important;
+  box-shadow: 0 0 6px rgba(0, 212, 255, 0.7) !important;
+  animation: tg-dot-pulse 2s ease-in-out infinite !important;
+}
+@keyframes tg-dot-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.85);
+  }
+}
+
+.tg-indicator-text {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: var(--tg-cyan) !important;
+  letter-spacing: 0.04em !important;
+  white-space: nowrap !important;
+}
+ 
+.tg-indicator-count {
+  display: flex !important;
+  align-items: baseline !important;
+  gap: 5px !important;
+  margin-left: auto !important;
+}
+
+.tg-count-num {
+  font-family: var(--tg-mono) !important;
+  font-size: 24px !important;
+  font-weight: 800 !important;
+  color: var(--tg-cyan) !important;
+  line-height: 1 !important;
+  min-width: 22px !important;
+  text-align: center !important;
+  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  text-shadow: 0 0 18px rgba(0, 212, 255, 0.35) !important;
+}
+.tg-count-num.tg-count-bump {
+  transform: scale(1.3) !important;
+}
+
+.tg-count-label {
+  font-size: 11px !important;
+  color: var(--tg-text-dim) !important;
+  font-weight: 500 !important;
+  text-transform: lowercase !important;
+  white-space: nowrap !important;
+}
+ 
+.tg-indicator-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+ 
+@keyframes tg-slide-down {
+  0% {
+    transform: translateX(-50%) translateY(-120%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+}
+
+.tg-indicator-exit {
+  animation: tg-slide-up 0.3s var(--tg-ease-out) forwards !important;
+}
+@keyframes tg-slide-up {
+  0% {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(-50%) translateY(-140%);
+    opacity: 0;
+  }
+}
+
+.tg-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  padding: 8px 18px !important;
+  border: none !important;
+  border-radius: 9px !important;
+  font-family: var(--tg-sans) !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+  outline: none !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+  -webkit-font-smoothing: antialiased !important;
+}
+ 
+.tg-btn-export {
+  background: linear-gradient(140deg, #00d4ff 0%, #009fcc 100%) !important;
+  color: #000 !important;
+  letter-spacing: 0.05em !important;
+  text-transform: uppercase !important;
+  font-size: 11px !important;
+  padding: 8px 18px !important;
+  box-shadow: 0 2px 10px rgba(0, 212, 255, 0.25) !important;
+}
+.tg-btn-export:hover {
+  background: linear-gradient(140deg, #33dfff 0%, #00c8ff 100%) !important;
+  box-shadow: 0 4px 20px rgba(0, 212, 255, 0.35) !important;
+  transform: translateY(-1px) !important;
+}
+.tg-btn-export:active {
+  transform: translateY(0) !important;
+}
+ 
+.tg-btn-cancel {
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: var(--tg-text-mid) !important;
+  width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  font-size: 13px !important;
+}
+.tg-btn-cancel:hover {
+  background: rgba(255, 64, 96, 0.12) !important;
+  color: var(--tg-red) !important;
+}
+.tg-btn-cancel svg {
+  display: block !important;
+}
+ 
+.tg-export-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: var(--tg-zmax) !important;
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: flex-end !important;
+  padding: 20px !important;
+  font-family: var(--tg-sans) !important;
+  color: var(--tg-text) !important;
+  opacity: 0 !important;
+  transition: opacity 0.25s ease !important;
+  -webkit-font-smoothing: antialiased !important;
+  pointer-events: none !important;
+  background: transparent !important;
+}
+.tg-export-overlay.tg-export-visible {
+  opacity: 1 !important;
+}
+.tg-export-overlay.tg-export-exit {
+  opacity: 0 !important;
+  transition: opacity 0.2s ease !important;
+}
+ 
+.tg-export-panel {
+  position: relative !important;
+  width: 480px !important;
+  max-width: 92vw !important;
+  max-height: 88vh !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  background: rgba(10, 10, 16, 0.98) !important;
+  border: 1px solid var(--tg-glass-border) !important;
+  border-radius: 18px !important;
+  pointer-events: auto !important;
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(255, 255, 255, 0.025),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+  transform: translateX(20px) translateY(-20px) !important;
+  transition: transform 0.35s var(--tg-ease) !important;
+}
+.tg-export-visible .tg-export-panel {
+  transform: translateX(0) translateY(0) !important;
+}
+.tg-export-exit .tg-export-panel {
+  transform: translateX(20px) translateY(-20px) !important;
+}
+
+
+.tg-export-panel::before {
+  content: "" !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  height: 2px !important;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--tg-cyan) 25%,
+    var(--tg-mint) 75%,
+    transparent 100%
+  ) !important;
+  border-radius: 18px 18px 0 0 !important;
+  z-index: 2 !important;
+}
+ 
+.tg-export-panel::after {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  border-radius: 18px !important;
+  opacity: 0.028 !important;
+  pointer-events: none !important;
+  z-index: 1 !important;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E") !important;
+}
+ 
+.tg-export-scanline {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  height: 100% !important;
+  pointer-events: none !important;
+  z-index: 1 !important;
+  overflow: hidden !important;
+  border-radius: 18px !important;
+}
+.tg-export-scanline::after {
+  content: "" !important;
+  position: absolute !important;
+  left: 0 !important;
+  right: 0 !important;
+  height: 40px !important;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(0, 212, 255, 0.018) 50%,
+    transparent 100%
+  ) !important;
+  animation: tg-scan 5s linear infinite !important;
+}
+@keyframes tg-scan {
+  0% {
+    top: -40px;
+  }
+  100% {
+    top: 100%;
+  }
+}
+ 
+.tg-export-header {
+  position: relative !important;
+  z-index: 3 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 22px 24px 14px !important;
+}
+.tg-export-title {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  font-size: 18px !important;
+  font-weight: 800 !important;
+  color: var(--tg-text) !important;
+  letter-spacing: -0.01em !important;
+}
+.tg-export-icon {
+  filter: drop-shadow(0 0 6px rgba(0, 212, 255, 0.5)) !important;
+}
+
+.tg-export-close {
+  width: 32px !important;
+  height: 32px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-radius: 8px !important;
+  color: var(--tg-text-mid) !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+}
+.tg-export-close:hover {
+  background: rgba(255, 64, 96, 0.1) !important;
+  border-color: rgba(255, 64, 96, 0.18) !important;
+  color: var(--tg-red) !important;
+}
+.tg-export-close svg {
+  display: block !important;
+}
+ 
+.tg-export-summary {
+  position: relative !important;
+  z-index: 3 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 20px !important;
+  padding: 0 24px 18px !important;
+}
+.tg-export-stat {
+  display: flex !important;
+  align-items: baseline !important;
+  gap: 7px !important;
+}
+.tg-export-stat-num {
+  font-family: var(--tg-mono) !important;
+  font-size: 30px !important;
+  font-weight: 800 !important;
+  color: var(--tg-cyan) !important;
+  line-height: 1 !important;
+  text-shadow: 0 0 20px rgba(0, 212, 255, 0.3) !important;
+}
+.tg-export-stat-label {
+  font-size: 13px !important;
+  color: var(--tg-text-dim) !important;
+  font-weight: 500 !important;
+}
+.tg-export-stat-divider {
+  width: 1px !important;
+  height: 22px !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+ 
+.tg-export-preview {
+  position: relative !important;
+  z-index: 3 !important;
+  margin: 0 24px 18px !important;
+  max-height: 180px !important;
+  overflow-y: auto !important;
+  background: rgba(0, 0, 0, 0.35) !important;
+  border: 1px solid rgba(255, 255, 255, 0.04) !important;
+  border-radius: 12px !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: rgba(0, 212, 255, 0.18) transparent !important;
+}
+.tg-export-preview::-webkit-scrollbar {
+  width: 5px !important;
+}
+.tg-export-preview::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+.tg-export-preview::-webkit-scrollbar-thumb {
+  background: rgba(0, 212, 255, 0.18) !important;
+  border-radius: 3px !important;
+}
+
+.tg-export-code {
+  font-family: var(--tg-mono) !important;
+  font-size: 11px !important;
+  line-height: 1.65 !important;
+  color: #7b8bb5 !important;
+  padding: 14px 16px !important;
+  margin: 0 !important;
+  white-space: pre-wrap !important;
+  word-break: break-word !important;
+}
+ 
+.tg-export-buttons {
+  position: relative !important;
+  z-index: 3 !important;
+  display: flex !important;
+  gap: 10px !important;
+  padding: 0 24px 24px !important;
+}
+
+.tg-btn-primary {
+  flex: 1 !important;
+  background: linear-gradient(140deg, #00d4ff 0%, #009fcc 100%) !important;
+  color: #000 !important;
+  padding: 14px 20px !important;
+  border-radius: 11px !important;
+  font-weight: 800 !important;
+  font-size: 13.5px !important;
+  letter-spacing: 0.01em !important;
+  box-shadow: 0 4px 18px rgba(0, 212, 255, 0.22) !important;
+}
+.tg-btn-primary:hover {
+  background: linear-gradient(140deg, #33dfff 0%, #00c8ff 100%) !important;
+  box-shadow: 0 6px 28px rgba(0, 212, 255, 0.35) !important;
+  transform: translateY(-2px) !important;
+}
+.tg-btn-primary:active {
+  transform: translateY(0) !important;
+}
+.tg-btn-primary svg {
+  stroke: #000 !important;
+}
+
+.tg-btn-secondary {
+  flex: 1 !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: #b8bcc8 !important;
+  padding: 14px 20px !important;
+  border-radius: 11px !important;
+  font-weight: 700 !important;
+  font-size: 13.5px !important;
+}
+.tg-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.07) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  color: #e0e2e8 !important;
+  transform: translateY(-2px) !important;
+}
+.tg-btn-secondary:active {
+  transform: translateY(0) !important;
+}
+ 
+.tg-export-feedback {
+  position: relative !important;
+  z-index: 3 !important;
+  text-align: center !important;
+  padding: 0 24px 18px !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  transition: opacity 0.2s ease !important;
+}
+.tg-hidden {
+  display: none !important;
+}
+.tg-feedback-success {
+  display: block !important;
+  color: var(--tg-green) !important;
+  text-shadow: 0 0 10px rgba(0, 230, 138, 0.25) !important;
+  animation: tg-feedback-in 0.3s var(--tg-ease) !important;
+}
+.tg-feedback-error {
+  display: block !important;
+  color: var(--tg-red) !important;
+  animation: tg-feedback-in 0.3s var(--tg-ease) !important;
+}
+@keyframes tg-feedback-in {
+  0% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
