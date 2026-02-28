@@ -3,7 +3,7 @@ chrome.runtime.onInstalled.addListener(() => {
     id: "tweetsGrab-toggle",
     title: "TweetsGrab — Toggle Selection Mode",
     contexts: ["page"],
-    documentUrlPatterns: ["https://x.com/*", "https://twitter.com/*"],
+    documentUrlPatterns: ["https://x.com/*"],
   });
 });
 
@@ -38,7 +38,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 function isXPage(url) {
-  return /^https:\/\/(x\.com|twitter\.com)/.test(url || "");
+  return /^https:\/\/x\.com/.test(url || "");
 }
 
 async function sendToggle(tabId) {

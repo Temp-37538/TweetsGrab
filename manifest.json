@@ -4,7 +4,6 @@
   "version": "1.0.0",
   "description": "Select and export tweets from X.com as structured JSON",
   "permissions": [
-    "activeTab",
     "scripting",
     "clipboardWrite",
     "downloads",
@@ -12,7 +11,6 @@
   ],
   "host_permissions": [
     "https://x.com/*",
-    "https://twitter.com/*",
     "https://twittergrabapi.onrender.com/*"
   ],
   "background": {
@@ -20,7 +18,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://x.com/*", "https://twitter.com/*"],
+      "matches": ["https://x.com/*"],
       "js": [
         "retrieve_videolink.js",
         "extract.js",
