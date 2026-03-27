@@ -3,7 +3,7 @@
   "name": "TweetsGrab",
   "version": "1.0.0",
   "description": "Select and export tweets from X.com as structured JSON",
-  "permissions": [
+  "permissions": [ 
     "scripting",
     "clipboardWrite",
     "downloads",

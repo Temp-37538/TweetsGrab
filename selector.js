@@ -1,11 +1,11 @@
 window.TweetsGrabSelector = (() => {
   "use strict";
- 
+
   let active = false;
-  let selections = []; 
+  let selections = [];
   let counter = 0;
   let indicator = null;
-  let observer = null; 
+  let observer = null;
 
   function activate() {
     if (active) return;
@@ -58,8 +58,23 @@ window.TweetsGrabSelector = (() => {
     window.TweetsGrabExport.show(data);
   }
 
-  async function onClickCapture(e) { 
+  async function onClickCapture(e) {
     if (e.target.closest(".tg-ui")) return;
+
+    const readView = getTwitterArticleReadViewElement();
+    if (readView) {
+      const inReadView =
+        e.target === readView ||
+        (e.target instanceof Element && e.target.closest(READ_VIEW_SELECTOR));
+      if (!inReadView) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+
+      await toggleTwitterArticleReadView(readView);
+      return;
+    }
 
     const article = e.target.closest(
       '[data-testid="tweet"], article[role="article"]',
@@ -73,30 +88,37 @@ window.TweetsGrabSelector = (() => {
     await toggleArticle(article);
   }
 
+  const READ_VIEW_SELECTOR =
+    "#twitterArticleReadView, .twitterArticleReadView, [data-testid='twitterArticleReadView']";
+
+  function getTwitterArticleReadViewElement() {
+    return document.querySelector(READ_VIEW_SELECTOR);
+  }
+
   function onKeydown(e) {
     if (e.key === "Escape") {
       e.preventDefault();
       e.stopPropagation();
       finishSelection();
     }
-  } 
+  }
 
   async function toggleArticle(article) {
     const idx = selections.findIndex((s) => s.element === article);
 
-    if (idx !== -1) { 
+    if (idx !== -1) {
       article.classList.remove("tg-selected");
       delete article.dataset.tgOrder;
       const badge = selections[idx].badgeEl;
       if (badge?.parentNode) badge.remove();
       selections.splice(idx, 1);
- 
+
       selections.forEach((s, i) => {
         s.data.id = i + 1;
         s.element.dataset.tgOrder = i + 1;
         if (s.badgeEl) s.badgeEl.textContent = i + 1;
       });
-    } else { 
+    } else {
       counter = selections.length + 1;
       const data = await window.TweetsGrabExtract.extractTweet(
         article,
@@ -112,7 +134,38 @@ window.TweetsGrabSelector = (() => {
     }
 
     refreshIndicatorCount();
-  } 
+  }
+
+  async function toggleTwitterArticleReadView(readView) {
+    const idx = selections.findIndex((s) => s.element === readView);
+
+    if (idx !== -1) {
+      readView.classList.remove("tg-selected");
+      delete readView.dataset.tgOrder;
+      const badge = selections[idx].badgeEl;
+      if (badge?.parentNode) badge.remove();
+      selections.splice(idx, 1);
+
+      selections.forEach((s, i) => {
+        s.data.id = i + 1;
+        s.element.dataset.tgOrder = i + 1;
+        if (s.badgeEl) s.badgeEl.textContent = i + 1;
+      });
+    } else {
+      counter = selections.length + 1;
+      const data =
+        await window.TweetsGrabExtract.extractTwitterArticleReadView(counter);
+      if (!data) return;
+
+      readView.classList.add("tg-selected");
+      readView.dataset.tgOrder = counter;
+
+      const badgeEl = createBadge(readView, counter);
+      selections.push({ element: readView, data, badgeEl });
+    }
+
+    refreshIndicatorCount();
+  }
 
   function createBadge(article, order) {
     const el = document.createElement("div");
@@ -121,7 +174,7 @@ window.TweetsGrabSelector = (() => {
     article.appendChild(el);
     return el;
   }
- 
+
   function buildIndicator() {
     if (indicator) return;
 
@@ -187,7 +240,7 @@ window.TweetsGrabSelector = (() => {
     num.textContent = selections.length;
     num.classList.add("tg-count-bump");
     setTimeout(() => num.classList.remove("tg-count-bump"), 200);
-  } 
+  }
 
   function startObserver() {
     observer = new MutationObserver((mutations) => {
@@ -223,7 +276,7 @@ window.TweetsGrabSelector = (() => {
       const tweetId = match[1];
       const sel = selections.find((s) => s.data.tweet_id === tweetId);
       if (!sel) continue;
- 
+
       sel.element = art;
       art.classList.add("tg-selected");
       art.dataset.tgOrder = sel.data.id;
@@ -231,7 +284,7 @@ window.TweetsGrabSelector = (() => {
       sel.badgeEl = createBadge(art, sel.data.id);
     }
   }
- 
+
   return {
     activate,
     deactivate,
