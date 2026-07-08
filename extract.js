@@ -1,25 +1,15 @@
 window.TweetsGrabExtract = (() => {
   "use strict";
 
-  /**
-   * Main entry: extract structured data from a tweet article element.
-   * @param {HTMLElement} article - The article DOM node ([data-testid="tweet"])
-   * @param {number}      order  - Selection order id
-   * @returns {object|null}
-   */
   async function extractTweet(article, order) {
     try {
-      if (hasTwitterArticleReadView()) {
-        return extractTwitterArticleReadView(order);
-      }
-
       const text = getText(article);
       const { username, displayName } = getUser(article);
-      const { url, tweetId } = getUrlAndId(article);
+      const { url, tweetId } = getUrlAndId(article, article);
       const timestamp = getTimestamp(article);
       const stats = getStats(article);
-      const media = getMedia(article);
-      const postedVideoUrls = await resolveVideoLinks(url, media.hasVideo);
+      const media = getMedia(article, article);
+      const postedVideoUrls = [];
       const quotedTweet = await getQuotedTweet(article);
 
       return {
@@ -44,67 +34,6 @@ window.TweetsGrabExtract = (() => {
     }
   }
 
-  function hasTwitterArticleReadView() {
-    return !!getTwitterArticleReadViewElement();
-  }
-
-  function getTwitterArticleReadViewElement() {
-    return document.querySelector(
-      "#twitterArticleReadView, .twitterArticleReadView, [data-testid='twitterArticleReadView']",
-    );
-  }
-
-  function extractTwitterArticleReadView(order) {
-    const readView = getTwitterArticleReadViewElement();
-    if (!readView) return null;
-
-    const titleText = getTwitterArticleTitleText(readView);
-    const bodyText = getTwitterArticleBodyText(readView);
-    const tweetText = [titleText, bodyText].filter(Boolean).join("\n\n");
-    const imageUrls = getTwitterArticleImages(readView);
-    const { tweetId } = hrefToData(location.href);
-
-    return {
-      id: order,
-      tweet_text: tweetText,
-      username: "",
-      display_name: "",
-      tweet_url: location.href,
-      posted_image_urls: imageUrls,
-      posted_video_urls: [],
-      posted_gif_urls: [],
-      timestamp: "",
-      tweet_id: tweetId,
-      likes: 0,
-      retweets: 0,
-      replies: 0,
-      quoted_tweet: null,
-    };
-  }
-
-  function getTwitterArticleTitleText(readView) {
-    const titleEl = readView.querySelector(
-      ".twitter-article-title, #twitter-article-title, [data-testid='twitter-article-title'], [name='twitter-article-title'], twitter-article-title",
-    );
-    return titleEl?.innerText?.trim() || "";
-  }
-
-  function getTwitterArticleBodyText(readView) {
-    const parts = Array.from(
-      readView.querySelectorAll('span[data-text="true"]'),
-    )
-      .map((el) => el.innerText.trim())
-      .filter(Boolean);
-    return Array.from(new Set(parts)).join("\n");
-  }
-
-  function getTwitterArticleImages(readView) {
-    const urls = Array.from(readView.querySelectorAll("img[src]"))
-      .map((img) => img.src || "")
-      .filter((src) => src && !src.startsWith("data:") && !/emoji/i.test(src));
-    return Array.from(new Set(urls));
-  }
-
   function getText(article, skipQuoted = true) {
     const allTexts = article.querySelectorAll('[data-testid="tweetText"]');
     for (const el of allTexts) {
@@ -114,14 +43,14 @@ window.TweetsGrabExtract = (() => {
     return "";
   }
 
-  function getUser(article) {
-    const container = article.querySelector('[data-testid="User-Name"]');
-    if (!container) return { username: "", displayName: "" };
+  function getUser(container, options = {}) {
+    const nameContainer = container.querySelector('[data-testid="User-Name"]');
+    if (!nameContainer) return { username: "", displayName: "" };
 
     let username = "";
     let displayName = "";
 
-    const spans = container.querySelectorAll("span");
+    const spans = nameContainer.querySelectorAll("span");
     for (const span of spans) {
       const t = span.textContent.trim();
       if (t.startsWith("@") && t.length > 1) {
@@ -130,7 +59,8 @@ window.TweetsGrabExtract = (() => {
       }
     }
 
-    const firstLink = container.querySelector('a[role="link"]');
+    const linkSelector = options.looseLinkFallback ? 'a[role="link"], div' : 'a[role="link"]';
+    const firstLink = nameContainer.querySelector(linkSelector);
     if (firstLink) {
       const clone = firstLink.cloneNode(true);
       clone.querySelectorAll("svg, img").forEach((n) => n.remove());
@@ -146,18 +76,21 @@ window.TweetsGrabExtract = (() => {
     return { username, displayName };
   }
 
-  function getUrlAndId(article) {
-    const timeEl = article.querySelector("time[datetime]");
-    if (timeEl) {
-      const link = timeEl.closest('a[href*="/status/"]');
-      if (link && isDirectChild(link, article)) {
-        return hrefToData(link.getAttribute("href"));
-      }
+  function getUrlAndId(container, directChildOf = null) {
+    const isQuoteContainer = !!container.closest('[role="link"][tabindex="0"]');
+    const statusLinks = Array.from(container.querySelectorAll('a[href*="/status/"]'));
+
+    const candidates = isQuoteContainer
+      ? statusLinks
+      : statusLinks.filter((l) => !l.closest('[role="link"][tabindex="0"]'));
+
+    for (const link of candidates) {
+      if (directChildOf && !isDirectChild(link, directChildOf)) continue;
+      return hrefToData(link.getAttribute("href"));
     }
 
-    const allLinks = article.querySelectorAll('a[href*="/status/"]');
-    for (const link of allLinks) {
-      if (!isDirectChild(link, article)) continue;
+    for (const link of statusLinks) {
+      if (directChildOf && !isDirectChild(link, directChildOf)) continue;
       return hrefToData(link.getAttribute("href"));
     }
 
@@ -170,8 +103,8 @@ window.TweetsGrabExtract = (() => {
     return { url, tweetId: match ? match[1] : "" };
   }
 
-  function getTimestamp(article) {
-    const el = article.querySelector("time[datetime]");
+  function getTimestamp(container) {
+    const el = container.querySelector("time[datetime]");
     return el ? el.getAttribute("datetime") : "";
   }
 
@@ -223,15 +156,15 @@ window.TweetsGrabExtract = (() => {
     return parseInt(text, 10) || 0;
   }
 
-  function getMedia(article) {
+  function getMedia(container, directChildOf = null) {
     const images = [];
     const videos = [];
     const gifs = [];
     let hasVideo = false;
 
-    const photoEls = article.querySelectorAll('[data-testid="tweetPhoto"]');
+    const photoEls = container.querySelectorAll('[data-testid="tweetPhoto"]');
     photoEls.forEach((photoEl) => {
-      if (!isDirectChild(photoEl, article)) return;
+      if (directChildOf && !isDirectChild(photoEl, directChildOf)) return;
       const img = photoEl.querySelector("img[src]");
       if (!img) return;
       let src = img.src;
@@ -240,9 +173,9 @@ window.TweetsGrabExtract = (() => {
       images.push(src);
     });
 
-    const players = article.querySelectorAll('[data-testid="videoPlayer"]');
+    const players = container.querySelectorAll('[data-testid="videoPlayer"]');
     players.forEach((player) => {
-      if (!isDirectChild(player, article)) return;
+      if (directChildOf && !isDirectChild(player, directChildOf)) return;
 
       const isGif = detectGif(player);
       const videoSrc = getVideoSrc(player);
@@ -251,17 +184,6 @@ window.TweetsGrabExtract = (() => {
         (isGif ? gifs : videos).push(videoSrc);
       }
       if (!isGif) hasVideo = true;
-    });
-
-    const strayVideos = article.querySelectorAll("video");
-    strayVideos.forEach((v) => {
-      if (!isDirectChild(v, article)) return;
-      if (v.closest('[data-testid="videoPlayer"]')) return;
-      const src = v.src || v.querySelector("source")?.src || "";
-      if (src && !src.startsWith("blob:")) {
-        videos.push(src);
-        hasVideo = true;
-      }
     });
 
     return { images, videos, gifs, hasVideo };
@@ -308,11 +230,12 @@ window.TweetsGrabExtract = (() => {
 
       if (!hasUserName || !hasTweetText) continue;
       if (!isDirectChild(link, article)) continue;
-      const { username, displayName } = getUserFromContainer(link);
+
+      const { username, displayName } = getUser(link, { looseLinkFallback: true });
       const text = hasTweetText.innerText.trim();
-      const { url, tweetId } = getUrlAndIdFromContainer(link);
-      const timestamp = getTimestampFromContainer(link);
-      const media = getMediaFromContainer(link);
+      const { url, tweetId } = getUrlAndId(link);
+      const timestamp = getTimestamp(link);
+      const media = getMedia(link);
       const postedVideoUrls = await resolveVideoLinks(url, media.hasVideo);
 
       return {
@@ -331,86 +254,6 @@ window.TweetsGrabExtract = (() => {
     return null;
   }
 
-  function getUserFromContainer(container) {
-    const userNameEl = container.querySelector('[data-testid="User-Name"]');
-    if (!userNameEl) return { username: "", displayName: "" };
-
-    let username = "";
-    let displayName = "";
-
-    const spans = userNameEl.querySelectorAll("span");
-    for (const span of spans) {
-      const t = span.textContent.trim();
-      if (t.startsWith("@") && t.length > 1) {
-        username = t;
-        break;
-      }
-    }
-
-    const firstLink = userNameEl.querySelector('a[role="link"], div');
-    if (firstLink) {
-      const clone = firstLink.cloneNode(true);
-      clone.querySelectorAll("svg, img").forEach((n) => n.remove());
-      displayName = clone.textContent.trim();
-      if (!username) {
-        const href = firstLink.getAttribute("href") || "";
-        const m = href.match(/^\/([A-Za-z0-9_]+)$/);
-        if (m) username = "@" + m[1];
-      }
-    }
-
-    return { username, displayName };
-  }
-
-  function getUrlAndIdFromContainer(container) {
-    const timeEl = container.querySelector("time[datetime]");
-    if (timeEl) {
-      const link = timeEl.closest('a[href*="/status/"]');
-      if (link) return hrefToData(link.getAttribute("href"));
-    }
-
-    const allLinks = container.querySelectorAll('a[href*="/status/"]');
-    for (const link of allLinks) {
-      return hrefToData(link.getAttribute("href"));
-    }
-
-    return { url: "", tweetId: "" };
-  }
-
-  function getTimestampFromContainer(container) {
-    const el = container.querySelector("time[datetime]");
-    return el ? el.getAttribute("datetime") : "";
-  }
-
-  function getMediaFromContainer(container) {
-    const images = [];
-    const videos = [];
-    const gifs = [];
-    let hasVideo = false;
-
-    const photoEls = container.querySelectorAll('[data-testid="tweetPhoto"]');
-    photoEls.forEach((photoEl) => {
-      const img = photoEl.querySelector("img[src]");
-      if (!img) return;
-      let src = img.src;
-      if (/profile_images|emoji/i.test(src)) return;
-      src = src.replace(/name=\w+/, "name=orig");
-      images.push(src);
-    });
-
-    const players = container.querySelectorAll('[data-testid="videoPlayer"]');
-    players.forEach((player) => {
-      const isGif = detectGif(player);
-      const videoSrc = getVideoSrc(player);
-      if (videoSrc) {
-        (isGif ? gifs : videos).push(videoSrc);
-      }
-      if (!isGif) hasVideo = true;
-    });
-
-    return { images, videos, gifs, hasVideo };
-  }
-
   function isDirectChild(el, article) {
     const closest = el.closest(
       '[data-testid="tweet"], article[role="article"]',
@@ -418,5 +261,14 @@ window.TweetsGrabExtract = (() => {
     return closest === article;
   }
 
-  return { extractTweet, extractTwitterArticleReadView, parseHumanNumber };
+  return {
+    extractTweet,
+    getText,
+    getUser,
+    getUrlAndId,
+    getTimestamp,
+    getStats,
+    getMedia,
+    resolveVideoLinks,
+  };
 })();

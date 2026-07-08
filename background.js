@@ -1,3 +1,5 @@
+importScripts("shared.js");
+
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
     id: "tweetsGrab-toggle",
@@ -5,64 +7,71 @@ chrome.runtime.onInstalled.addListener(() => {
     contexts: ["page"],
     documentUrlPatterns: ["https://x.com/*"],
   });
-});
 
-chrome.action.onClicked.addListener(async (tab) => {
-  if (!isXPage(tab.url)) return;
-  await sendToggle(tab.id);
+  chrome.contextMenus.create({
+    id: "tweetsGrab-thread",
+    title: "TweetsGrab — Select Thread",
+    contexts: ["page"],
+    documentUrlPatterns: ["https://x.com/*/status/*"],
+  });
 });
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
-  if (info.menuItemId !== "tweetsGrab-toggle") return;
-  if (!isXPage(tab.url)) return;
-  await sendToggle(tab.id);
+  if (!tab?.id || !isXPage(tab.url)) return;
+
+  const action =
+    info.menuItemId === "tweetsGrab-toggle"
+      ? "toggle-selection"
+      : info.menuItemId === "tweetsGrab-thread"
+        ? "select-thread"
+        : null;
+
+  if (action) await dispatchToContentScript(tab.id, action);
 });
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.action === "download-json") {
-    const dataUrl =
-      "data:application/json;charset=utf-8," + encodeURIComponent(message.data);
-
-    chrome.downloads.download(
-      {
-        url: dataUrl,
-        filename: message.filename || "tweets-export.json",
-        saveAs: true,
-      },
-      (downloadId) => {
-        sendResponse({ success: !!downloadId });
-      },
-    );
+    handleDownload(message, sendResponse);
     return true;
   }
+  return false;
 });
 
-function isXPage(url) {
-  return /^https:\/\/x\.com/.test(url || "");
+async function dispatchToContentScript(tabId, action) {
+  try {
+    await chrome.tabs.sendMessage(tabId, { action });
+    return;
+  } catch {
+  }
+
+  try {
+    await ensureContentScriptInjected(tabId);
+    await chrome.tabs.sendMessage(tabId, { action });
+  } catch (e) {
+    console.warn("[TweetsGrab] Impossible d'activer l'action sur l'onglet", tabId, e);
+  }
 }
 
-async function sendToggle(tabId) {
-  try {
-    await chrome.tabs.sendMessage(tabId, { action: "toggle-selection" });
-  } catch {
-    await chrome.scripting.executeScript({
-      target: { tabId },
-      files: [
-        "retrieve_videolink.js",
-        "extract.js",
-        "selector.js",
-        "export.js",
-        "content.js",
-      ],
-    });
-    await chrome.scripting.insertCSS({
-      target: { tabId },
-      files: ["styles.css"],
-    });
-    try {
-      await chrome.tabs.sendMessage(tabId, { action: "toggle-selection" });
-    } catch (e) {
-      console.warn("[TweetsGrab] Could not activate on tab", tabId, e);
-    }
-  }
+function handleDownload(message, sendResponse) {
+  const dataUrl =
+    "data:application/json;charset=utf-8," + encodeURIComponent(message.data);
+
+  chrome.downloads.download(
+    {
+      url: dataUrl,
+      filename: message.filename || "tweets-export.json",
+      saveAs: true,
+    },
+    (downloadId) => {
+      if (chrome.runtime.lastError || !downloadId) {
+        console.warn(
+          "[TweetsGrab] Échec du téléchargement :",
+          chrome.runtime.lastError?.message,
+        );
+        sendResponse({ success: false, error: chrome.runtime.lastError?.message });
+        return;
+      }
+      sendResponse({ success: true, downloadId });
+    },
+  );
 }

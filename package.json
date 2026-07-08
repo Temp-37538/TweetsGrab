@@ -1,17 +1,12 @@
 {
   "name": "tweetsgrab",
   "version": "1.0.0",
-  "description": "Twitter content grabber extension",
-  "type": "module",
-  "main": "background.js",
+  "description": "Extension de navigateur pour sélectionner et exporter des tweets X.com en JSON structuré",
+  "private": true,
   "scripts": {
-    "start": "node background.js",
-    "dev": "node --watch background.js"
+    "package": "zip -r tweetsgrab.zip manifest.json background.js content.js selector.js export.js extract.js retrieve_videolink.js shared.js styles.css popup.html popup.js icons -x '*.DS_Store'"
   },
-  "keywords": [
-    "twitter",
-    "extension"
-  ], 
+  "keywords": ["twitter", "x.com", "browser-extension", "manifest-v3"],
   "author": "",
   "license": "ISC"
 }

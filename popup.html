@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  :root {
+    --ink: #17181c;
+    --surface: #202227;
+    --surface-hi: #26282e;
+    --border: #34363d;
+    --marker: #ffc933;
+    --marker-ink: #1a1503;
+    --danger: #ff6b57;
+    --text: #edeef0;
+    --text-dim: #8a8d95;
+    --text-faint: #55585f;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --radius: 6px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 260px;
+    background: var(--ink);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 13px;
+    padding: 14px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-bottom: 12px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .brand-mark {
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+  }
+  .brand-name {
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .page-status {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px;
+    margin-bottom: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  .page-status-label {
+    font-size: 10px;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    font-weight: 700;
+  }
+  .page-status-value {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text);
+  }
+
+  .actions {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 12.5px;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+    box-shadow: 2px 2px 0 var(--border);
+    transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.08s ease;
+  }
+  .btn-icon {
+    font-size: 14px;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .btn:hover:not(:disabled) { background: var(--surface-hi); }
+  .btn:active:not(:disabled) {
+    transform: translate(2px, 2px);
+    box-shadow: 0 0 0 var(--border);
+  }
+  .btn:disabled { cursor: not-allowed; opacity: 0.4; box-shadow: none; }
+  .btn:focus-visible {
+    outline: 2px solid var(--marker);
+    outline-offset: 2px;
+  }
+
+  .btn-primary {
+    background: var(--marker);
+    color: var(--marker-ink);
+    border-color: var(--marker);
+    box-shadow: 2px 2px 0 #8f6c00;
+  }
+  .btn-primary:hover:not(:disabled) { background: #ffd35c; }
+  .btn-primary:active:not(:disabled) { box-shadow: 0 0 0 #8f6c00; }
+
+  .btn-danger { color: var(--danger); }
+  .btn-danger:hover:not(:disabled) {
+    background: #2a1e1c;
+    border-color: var(--danger);
+  }
+
+  .status-line {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text-faint);
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+  <div class="brand">
+    <svg class="brand-mark" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M3 3h9.17a2 2 0 0 1 1.41.59l7.83 7.83a2 2 0 0 1 0 2.83l-7.75 7.75a2 2 0 0 1-2.83 0L3 14.17V3z" fill="#ffc933"/>
+      <circle cx="7.5" cy="7.5" r="1.6" fill="#17181c"/>
+    </svg>
+    <span class="brand-name">TweetsGrab</span>
+  </div>
+
+  <div class="page-status">
+    <span class="page-status-label">Page</span>
+    <span class="page-status-value" id="pageType">—</span>
+  </div>
+
+  <div class="actions">
+    <button class="btn btn-primary" id="btnManual">
+      <span class="btn-icon">▣</span> Selection Mode
+    </button>
+    <button class="btn" id="btnThread">
+      <span class="btn-icon">≡</span> Select Thread
+    </button>
+    <button class="btn btn-danger" id="btnCancel">
+      <span class="btn-icon">✕</span> Cancel
+    </button>
+  </div>
+
+  <div class="status-line" id="status">Cliquez sur un mode pour commencer</div>
+
+  <script src="shared.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
