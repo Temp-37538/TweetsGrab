@@ -6,35 +6,55 @@ window.TweetsGrabSelector = (() => {
   let counter = 0;
   let indicator = null;
   let observer = null;
+  let mode = 'manual';
+  let threadAccum = null;
+  let threadAuthor = '';
+  let threadLastTotal = 0;
+  let threadObserver = null;
+  let threadDebounceTimer = null;
+  let pendingExportAborted = false;
 
-  function activate() {
+  function activate(modeParam) {
     if (active) return;
     active = true;
+    mode = modeParam || 'manual';
     counter = 0;
     selections = [];
     document.body.classList.add("tg-selection-mode");
+    document.body.classList.add("tg-mode-" + mode);
     buildIndicator();
     document.addEventListener("click", onClickCapture, true);
     document.addEventListener("keydown", onKeydown, true);
     startObserver();
+
+    if (mode === 'thread') {
+      threadAccum = new Set();
+      threadLastTotal = 0;
+      const m = location.pathname.match(/^\/([^\/]+)\/status\//);
+      threadAuthor = m ? m[1] : '';
+      startThreadObserver();
+      selectThread();
+    }
   }
 
   function deactivate() {
     if (!active) return;
     active = false;
     document.body.classList.remove("tg-selection-mode");
+    document.body.classList.remove("tg-mode-manual", "tg-mode-thread");
     document.removeEventListener("click", onClickCapture, true);
     document.removeEventListener("keydown", onKeydown, true);
     destroyIndicator();
     stopObserver();
+    stopThreadObserver();
+    mode = 'manual';
+    threadAccum = null;
+    threadAuthor = '';
+    threadLastTotal = 0;
   }
 
   function isActive() {
     return active;
-  }
-
-  function getSelections() {
-    return selections.map((s) => s.data);
   }
 
   function clearAll() {
@@ -45,36 +65,196 @@ window.TweetsGrabSelector = (() => {
     });
     selections = [];
     counter = 0;
+    threadAccum = null;
+    threadLastTotal = 0;
   }
 
-  function finishSelection() {
+  async function finishSelection() {
+    pendingExportAborted = false;
     if (selections.length === 0) {
       deactivate();
       clearAll();
       return;
     }
+    const pendingCount = selections.filter(
+      (s) => s.needsVideo && s.data.posted_video_urls.length === 0
+    ).length;
+    if (pendingCount > 0) setExportLoading(pendingCount);
     const data = selections.map((s) => s.data);
+    await resolvePendingVideos();
+    if (pendingExportAborted) return;
     deactivate();
     window.TweetsGrabExport.show(data);
   }
 
+  function getTweetId(article) {
+    const times = article.querySelectorAll('time[datetime]');
+    let fallback = null;
+    for (const timeEl of times) {
+      const link = timeEl.closest('a[href*="/status/"]');
+      if (!link) continue;
+      const m = (link.getAttribute('href') || '').match(/\/status\/(\d+)/);
+      if (!m) continue;
+      if (!timeEl.closest('[role="link"][tabindex="0"]')) return m[1];
+      if (!fallback) fallback = m[1];
+    }
+    return fallback;
+  }
+
+  function selectThread() {
+    if (!threadAuthor) return { total: 0 };
+
+    const cells = document.querySelectorAll('[data-testid="cellInnerDiv"]');
+    let broken = false;
+    let order = 0;
+
+    for (let i = 0; i < cells.length; i++) {
+      const container = cells[i];
+      const article = container.querySelector('[data-testid="tweet"]');
+      if (!article) continue;
+
+      const isAuthor = Array.from(
+        article.querySelectorAll('[data-testid="User-Name"] a[href]')
+      ).some((a) => {
+        const h = a.getAttribute("href") || "";
+        return h === "/" + threadAuthor || h.startsWith("/" + threadAuthor + "/");
+      });
+      const tweetId = getTweetId(article);
+
+      if (isAuthor && !broken) {
+        if (tweetId) threadAccum.add(tweetId);
+      } else if (!isAuthor) {
+        broken = true;
+      }
+
+      if (tweetId && threadAccum.has(tweetId)) {
+        order++;
+        if (!selections.some(s => s.element === article)) {
+          counter = selections.length + 1;
+          const result = extractTweetSync(article, counter);
+          if (result) {
+            article.classList.add("tg-selected");
+            article.dataset.tgOrder = counter;
+            const badgeEl = createBadge(article, counter);
+            selections.push({
+              element: article,
+              data: result.data,
+              badgeEl,
+              needsVideo: result.needsVideo,
+            });
+          }
+        } else {
+          const sel = selections.find(s => s.element === article);
+          if (sel) {
+            sel.data.id = order;
+            article.dataset.tgOrder = order;
+            if (sel.badgeEl) sel.badgeEl.textContent = order;
+          }
+        }
+      }
+    }
+
+    refreshIndicatorCount();
+    return { total: threadAccum.size };
+  }
+
+  function extractTweetSync(article, order) {
+    try {
+      const E = window.TweetsGrabExtract;
+      const text = E.getText(article);
+      const { username, displayName } = E.getUser(article);
+      const { url, tweetId } = E.getUrlAndId(article, article);
+      const timestamp = E.getTimestamp(article);
+      const stats = E.getStats(article);
+      const media = E.getMedia(article, article);
+
+      const data = {
+        id: order,
+        tweet_text: text,
+        username,
+        display_name: displayName,
+        tweet_url: url,
+        posted_image_urls: media.images,
+        posted_video_urls: [],
+        posted_gif_urls: media.gifs,
+        timestamp,
+        tweet_id: tweetId,
+        likes: stats.likes,
+        retweets: stats.retweets,
+        replies: stats.replies,
+        quoted_tweet: null,
+      };
+
+      return { data, needsVideo: media.hasVideo };
+    } catch (err) {
+      return null;
+    }
+  }
+
+  async function resolvePendingVideos() {
+    const pending = selections.filter(
+      (s) => s.needsVideo && s.data.posted_video_urls.length === 0,
+    );
+    if (!pending.length) return;
+
+    const E = window.TweetsGrabExtract;
+    await Promise.all(
+      pending.map(async (s) => {
+        try {
+          s.data.posted_video_urls = await E.resolveVideoLinks(s.data.tweet_url, true);
+        } catch (e) {
+          console.warn("[TweetsGrab] Résolution vidéo (thread) échouée :", e);
+        }
+      }),
+    );
+  }
+
+  function startThreadObserver() {
+    if (threadObserver) return;
+
+    const root = document.querySelector('[aria-label^="Timeline"]')
+              || document.querySelector('main[role="main"]')
+              || document.body;
+
+    threadObserver = new MutationObserver((mutations) => {
+      let hasNewCell = false;
+      for (const mut of mutations) {
+        for (const node of mut.addedNodes) {
+          if (node.nodeType !== 1) continue;
+          if (node.matches?.('[data-testid="cellInnerDiv"]') || node.querySelector?.('[data-testid="cellInnerDiv"]')) {
+            hasNewCell = true;
+            break;
+          }
+        }
+        if (hasNewCell) break;
+      }
+      if (!hasNewCell) return;
+
+      clearTimeout(threadDebounceTimer);
+      threadDebounceTimer = setTimeout(() => {
+        const prev = threadLastTotal;
+        const r = selectThread();
+        if (r.total > prev) {
+          threadLastTotal = r.total;
+          refreshIndicatorCount();
+        }
+      }, 300);
+    });
+
+    threadObserver.observe(root, { childList: true, subtree: true });
+  }
+
+  function stopThreadObserver() {
+    if (threadObserver) {
+      threadObserver.disconnect();
+      threadObserver = null;
+    }
+    clearTimeout(threadDebounceTimer);
+    threadDebounceTimer = null;
+  }
+
   async function onClickCapture(e) {
     if (e.target.closest(".tg-ui")) return;
-
-    const readView = getTwitterArticleReadViewElement();
-    if (readView) {
-      const inReadView =
-        e.target === readView ||
-        (e.target instanceof Element && e.target.closest(READ_VIEW_SELECTOR));
-      if (!inReadView) return;
-
-      e.preventDefault();
-      e.stopPropagation();
-      e.stopImmediatePropagation();
-
-      await toggleTwitterArticleReadView(readView);
-      return;
-    }
 
     const article = e.target.closest(
       '[data-testid="tweet"], article[role="article"]',
@@ -86,13 +266,6 @@ window.TweetsGrabSelector = (() => {
     e.stopImmediatePropagation();
 
     await toggleArticle(article);
-  }
-
-  const READ_VIEW_SELECTOR =
-    "#twitterArticleReadView, .twitterArticleReadView, [data-testid='twitterArticleReadView']";
-
-  function getTwitterArticleReadViewElement() {
-    return document.querySelector(READ_VIEW_SELECTOR);
   }
 
   function onKeydown(e) {
@@ -120,6 +293,7 @@ window.TweetsGrabSelector = (() => {
       });
     } else {
       counter = selections.length + 1;
+      const needsVideo = window.TweetsGrabExtract.getMedia(article, article).hasVideo;
       const data = await window.TweetsGrabExtract.extractTweet(
         article,
         counter,
@@ -130,38 +304,7 @@ window.TweetsGrabSelector = (() => {
       article.dataset.tgOrder = counter;
 
       const badgeEl = createBadge(article, counter);
-      selections.push({ element: article, data, badgeEl });
-    }
-
-    refreshIndicatorCount();
-  }
-
-  async function toggleTwitterArticleReadView(readView) {
-    const idx = selections.findIndex((s) => s.element === readView);
-
-    if (idx !== -1) {
-      readView.classList.remove("tg-selected");
-      delete readView.dataset.tgOrder;
-      const badge = selections[idx].badgeEl;
-      if (badge?.parentNode) badge.remove();
-      selections.splice(idx, 1);
-
-      selections.forEach((s, i) => {
-        s.data.id = i + 1;
-        s.element.dataset.tgOrder = i + 1;
-        if (s.badgeEl) s.badgeEl.textContent = i + 1;
-      });
-    } else {
-      counter = selections.length + 1;
-      const data =
-        await window.TweetsGrabExtract.extractTwitterArticleReadView(counter);
-      if (!data) return;
-
-      readView.classList.add("tg-selected");
-      readView.dataset.tgOrder = counter;
-
-      const badgeEl = createBadge(readView, counter);
-      selections.push({ element: readView, data, badgeEl });
+      selections.push({ element: article, data, badgeEl, needsVideo });
     }
 
     refreshIndicatorCount();
@@ -178,21 +321,24 @@ window.TweetsGrabSelector = (() => {
   function buildIndicator() {
     if (indicator) return;
 
+    const modeLabel = mode === 'thread'
+      ? '<span class="tg-indicator-text">≡ Thread Mode</span>'
+      : '<span class="tg-indicator-dot"></span><span class="tg-indicator-text">Selection Mode</span>';
+
     indicator = document.createElement("div");
     indicator.className = "tg-indicator tg-ui";
     indicator.innerHTML = `
       <div class="tg-indicator-inner">
         <div class="tg-indicator-brand">
           <svg class="tg-indicator-logo" width="18" height="18" viewBox="0 0 24 24" fill="none">
-            <path d="M13 2L4.09 12.5H11L10 22L18.91 11.5H12L13 2Z"
-                  fill="#00d4ff" stroke="#00d4ff" stroke-width="1" stroke-linejoin="round"/>
+            <path d="M3 3h9.17a2 2 0 0 1 1.41.59l7.83 7.83a2 2 0 0 1 0 2.83l-7.75 7.75a2 2 0 0 1-2.83 0L3 14.17V3z" fill="#ffc933"/>
+            <circle cx="7.5" cy="7.5" r="1.6" fill="#17181c"/>
           </svg>
           <span class="tg-indicator-name">TweetsGrab</span>
         </div>
 
         <div class="tg-indicator-status">
-          <span class="tg-indicator-dot"></span>
-          <span class="tg-indicator-text">Selection Mode</span>
+          ${modeLabel}
         </div>
 
         <div class="tg-indicator-count">
@@ -218,6 +364,7 @@ window.TweetsGrabSelector = (() => {
     });
     indicator.querySelector(".tg-btn-cancel").addEventListener("click", (e) => {
       e.stopPropagation();
+      pendingExportAborted = true;
       deactivate();
       clearAll();
     });
@@ -242,7 +389,22 @@ window.TweetsGrabSelector = (() => {
     setTimeout(() => num.classList.remove("tg-count-bump"), 200);
   }
 
+  function setExportLoading(count) {
+    if (!indicator) return;
+    const btn = indicator.querySelector(".tg-btn-export");
+    if (!btn) return;
+    btn.disabled = true;
+    btn.classList.add("tg-btn-loading");
+    btn.innerHTML =
+      '<span class="tg-spin" aria-hidden="true"></span>' +
+      '<span>Resolving videos… (' + count + ')</span>';
+  }
+
   function startObserver() {
+    const root = document.querySelector('[aria-label^="Timeline"]')
+              || document.querySelector('main[role="main"]')
+              || document.body;
+
     observer = new MutationObserver((mutations) => {
       for (const mut of mutations) {
         for (const node of mut.addedNodes) {
@@ -251,7 +413,7 @@ window.TweetsGrabSelector = (() => {
         }
       }
     });
-    observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(root, { childList: true, subtree: true });
   }
 
   function stopObserver() {
@@ -289,7 +451,6 @@ window.TweetsGrabSelector = (() => {
     activate,
     deactivate,
     isActive,
-    getSelections,
     clearAll,
     finishSelection,
   };

@@ -18,14 +18,11 @@ window.TweetsGrabExport = (() => {
     overlay.innerHTML = `
       <div class="tg-export-panel tg-ui">
 
-        <!-- decorative scanline -->
-        <div class="tg-export-scanline"></div>
-
         <div class="tg-export-header">
           <div class="tg-export-title">
-            <svg class="tg-export-icon" width="22" height="22" viewBox="0 0 24 24" fill="none">
-              <path d="M13 2L4.09 12.5H11L10 22L18.91 11.5H12L13 2Z"
-                    fill="#00d4ff" stroke="#00d4ff" stroke-width="1" stroke-linejoin="round"/>
+            <svg class="tg-export-icon" width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path d="M3 3h9.17a2 2 0 0 1 1.41.59l7.83 7.83a2 2 0 0 1 0 2.83l-7.75 7.75a2 2 0 0 1-2.83 0L3 14.17V3z" fill="#ffc933"/>
+              <circle cx="7.5" cy="7.5" r="1.6" fill="#17181c"/>
             </svg>
             <span>Export Tweets</span>
           </div>
@@ -166,9 +163,5 @@ window.TweetsGrabExport = (() => {
     el.className = 'tg-export-feedback tg-feedback-' + (ok ? 'success' : 'error');
   }
 
-  function esc(str) {
-    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  }
-
-  return { show, hide };
+  return { show };
 })();
