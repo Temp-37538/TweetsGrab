@@ -98,7 +98,7 @@ window.TweetsGrabExtract = (() => {
   }
 
   function hrefToData(href) {
-    const url = href.startsWith("http") ? href : "https://x.com" + href;
+    const url = href.startsWith("http") ? href : "https://x.n0g.xyz" + href;
     const match = href.match(/\/status\/(\d+)/);
     return { url, tweetId: match ? match[1] : "" };
   }
